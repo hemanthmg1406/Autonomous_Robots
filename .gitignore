@@ -1,0 +1,15 @@
+# run logs and caches (created on every run)
+navigator/logs/
+__pycache__/
+*.pyc
+tools/last_run_output.txt
+
+# macOS system files
+.DS_Store
+
+# local backups (not part of the submission)
+_backup_not_for_submission/
+
+# screen recordings (too large for GitHub: 100 MB per file limit)
+*.mov
+*.mp4
