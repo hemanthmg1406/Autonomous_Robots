@@ -46,7 +46,8 @@ packages, the launcher restarts itself with `~/.venvs/webots` automatically.
 Press ▶. The console prints when each pillar is located and reached, and at the end a `RESULT` block with the times start -> blue pillar, blue -> yellow pillar and total (simulation time). All details are written to the log file.
 
 While the controller runs, a window "Occupancy grid - MazeN" shows the map as the robot builds it (lidar
-walls, camera obstacles, green floor, the no-go zone around obstacles, the planned path and the pillars;
+walls, camera obstacles, green floor, the no-go zone around obstacles, the planned path and the pillars,
+and while a pillar is still unknown the exploration frontier, pillar candidates and the chosen target;
 legend in `docs/HOW_IT_WORKS.md`, section 12). It is display only and does not change the robot's behaviour.
 To hide it, start with `NAV_SHOW_MAP=0 ./run_webots.sh ...` or set `"show_map": false` in a parameter file.
 

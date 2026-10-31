@@ -922,8 +922,14 @@ while robot.step(DT_MS) != -1:
         continue
     try:
         step_once()
-        view.update(t, pose, follow.path, pillars, goals[gi] if gi < len(goals) else None,
-                    getattr(planner, "blocked", None))
+        goal_ = goals[gi] if gi < len(goals) else None
+        exploring = goal_ is not None and goal_ not in pillars
+        view.update(t, pose, path=follow.path, pillars=pillars, goal=goal_,
+                    blocked=getattr(planner, "blocked", None),
+                    frontier=planner.frontier_cells if exploring else None,
+                    viewpoints=planner.viewpoint_cells if exploring else None,
+                    target=grid.xy(*explore_target) if exploring and explore_target is not None else None,
+                    candidates=[(bx, by) for bx, by, _, _ in blob_cands] if exploring else None)
         if t >= next_status:
             next_status += 1.0
             log(status_line(), echo=False)

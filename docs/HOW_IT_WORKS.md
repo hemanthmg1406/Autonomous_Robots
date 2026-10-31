@@ -423,6 +423,29 @@ score = path length to it
       − bonus if it is a pillar-candidate viewpoint
 ```
 
+The scores are compared using the path cost from Dijkstra (`find_costs`), so a frontier behind a wall
+counts as far away even if it is close in a straight line.
+
+**Committing to a target** (`_explore` in `navigator.py`): once a target is chosen, it is stored in
+`explore_target`, and the robot keeps driving to it until it is reached, blocked, or no longer a frontier
+(the camera has checked it in the meantime). Only then is a new frontier chosen. Without this, the best
+frontier changes slightly every 0.25 s and the robot would hesitate between two directions. When it
+arrives, it marks the area around it as checked and spins once if much of the space visible from there is
+still unchecked.
+
+**What "frontier" means with the current parameters.** `explore_lidar_frontier` is `False`, so tier 2 is
+switched off. The frontier is therefore *floor that the lidar has seen as free but the depth camera has not
+checked yet*, limited to the bounding box of the confirmed walls plus 0.6 m (the mazes are open, and outside
+the walls there is only empty floor). Unchecked floor is a large area rather than a thin line, so in the
+map window the frontier shows as wide blue regions. The robot's job is to drive until the cameras have
+covered them, because the pillar must stand somewhere the camera has not looked yet.
+
+![Live map, Maze 3, t = 27.7 s: searching for the yellow pillar](images/map_maze3_exploring.png)
+
+Above, the blue pillar has been reached and the yellow one is unknown. Blue areas are the frontier, the
+light-green patch (top right) is a viewpoint from which a pillar candidate (purple ring) can be looked at,
+and the red cross is the committed exploration target.
+
 ---
 
 ## 10. Control: pure pursuit and speed limits
@@ -505,6 +528,14 @@ Run as described in `README.md`, for example `tools/run_maze1.command`. A window
 | magenta line | the current planned path | `follow.path` |
 | black circle + line | the robot (0.116 m radius) and its heading | `pose` |
 | blue / yellow discs | fused pillar estimates; a thick rim marks the current goal | `pillars` |
+| bright blue areas ("frontier") | exploration frontier: free floor next to space not yet observed (section 9) | `planner.frontier_cells` |
+| light green ("candidate viewpoint") | cells from which a pillar candidate can be looked at | `planner.viewpoint_cells` |
+| purple ring ("pillar candidate") | small round lidar object that may be a pillar | `blob_cands` |
+| red cross ("exploration target") | the frontier cell the robot has committed to | `explore_target` |
+
+The four exploration layers appear only while the current goal pillar is unknown. As soon as the pillar
+is located, the robot plans straight to it and they disappear. In Maze 1 both pillars are seen almost
+at once, so to see exploration run Maze 3 and watch the search for the yellow pillar.
 
 Things to watch for:
 
@@ -512,7 +543,9 @@ Things to watch for:
   evidence;
 - pink filling a gap completely, which means the passage is too narrow for the robot;
 - red lines with no black under them: floating walls the lidar cannot see;
-- the magenta path jumping when a new obstacle appears (a replan).
+- the magenta path jumping when a new obstacle appears (a replan);
+- while exploring, the blue frontier shrinking as the camera covers it, and the red cross moving on
+  once its area has been checked.
 
 **Switching it off**: set `"show_map": false` in a `params_<World>.json`, or start Webots with
 `NAV_SHOW_MAP=0`, for example `NAV_SHOW_MAP=0 ./run_webots.sh ../Mazes/Maze1/worlds/Maze1.wbt`. The
@@ -570,7 +603,13 @@ Try each one before opening the answer.
    Which cells are free and which is hit?
    <details><summary>Answer</summary>free_len = 0.1 − 0.06 = 0.04 m, so samples at 0, 0.018 and 0.036 m are free: columns off+0 and off+1 in row off. The hit at x = 0.1 m is column off+5. Cells off+2 to off+4 are untouched (the free_stop band).</details>
 
-10. Where would you change the code to use Bresenham's algorithm instead of sampling?
+10. In Maze 3 the frontier is drawn as large blue areas, not thin lines. Why?
+    <details><summary>Answer</summary>With `explore_lidar_frontier = False`, a frontier cell is lidar-free floor that is unchecked by the depth camera, or next to such floor (`free & dilate(~cam_seen)`). Most floor is seen by the lidar long before the camera has looked at it, so whole regions qualify. With the lidar tier switched on, the frontier would be the classic thin border between seen and never-seen space.</details>
+
+11. Why does the robot keep its exploration target instead of re-choosing the best frontier every replan?
+    <details><summary>Answer</summary>Scores of nearby frontiers change a little with every new scan. Re-choosing every 0.25 s would make the robot switch between directions and waste time. Committing (`explore_target`) plus the `explore_persist` penalty keeps its motion steady.</details>
+
+12. Where would you change the code to use Bresenham's algorithm instead of sampling?
     <details><summary>Answer</summary>In `Grid.update_lidar`, replace the block that builds `fx, fy` and `m` with a per-ray Bresenham walk from `cell(ox, oy)` to the cell `free_stop` before the hit. Collect the cells, then keep the `np.unique` and the log-odds update unchanged.</details>
 
 ---
@@ -614,4 +653,4 @@ The full source list is in `REFERENCES.md`. The key ones per topic:
 ---
 
 *This guide was written with Claude (Anthropic LLM, Claude Code), Oct 2026, from the code in this
-repository. The two map pictures are frames from a real Maze 1 run on 31.10.26 (total 54.50 s).*
+repository. The map pictures are frames from real runs on 31.10.26 (Maze 1: total 54.50 s; Maze 3: total 42.59 s).*

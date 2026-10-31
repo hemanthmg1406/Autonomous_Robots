@@ -13,6 +13,10 @@ GREEN = (60, 170, 60)               # forbidden floor
 INFLATED = (215, 205, 245)          # where the robot centre may not go (walls grown by the robot radius)
 TRAIL = (0, 140, 255)               # cells the robot centre has passed
 PATH = (200, 0, 200)
+FRONTIER = (230, 160, 0)            # free cells bordering unexplored space (exploration targets)
+VIEWPOINT = (0, 200, 140)           # cells from which a pillar candidate can be looked at
+TARGET = (0, 0, 255)                # exploration target the robot is driving to
+CANDIDATE = (120, 0, 120)           # small round lidar object that may be a pillar
 ROBOT = (0, 0, 0)
 PILLAR = {"blue": (200, 90, 0), "yellow": (0, 210, 230)}
 SIZE = 720                          # px, longest side of the window
@@ -36,8 +40,10 @@ class MapView:
         except Exception as ex:          # e.g. opencv-python-headless has no windows
             self.error = f"{ex.__class__.__name__}: {ex}"
 
-    def image(self, t, pose, path=None, pillars=None, goal=None, blocked=None):
-        """BGR image of the map around everything observed so far (north = up)"""
+    def image(self, t, pose, path=None, pillars=None, goal=None, blocked=None,
+              frontier=None, viewpoints=None, target=None, candidates=None):
+        """BGR image of the map around everything observed so far (north = up). frontier,
+        viewpoints, target and candidates are only given while the goal pillar is unknown."""
         cv2, g = self.cv2, self.grid
         # crop: observed cells plus the robot, with a margin
         rows, cols = np.nonzero(g.seen)
@@ -57,6 +63,10 @@ class MapView:
             img[blocked[sl] & ~(g.logodds[sl] > self.P["l_occ"])] = INFLATED
         img[g.green[sl]] = GREEN
         img[g.vis_obst[sl]] = CAM_WALL
+        # exploration: frontier and viewpoint cells are 1 cell wide, thickened by one cell to be visible
+        for mask, colour in ((viewpoints, VIEWPOINT), (frontier, FRONTIER)):
+            if mask is not None:
+                img[cv2.dilate(mask[sl].astype(np.uint8), np.ones((3, 3), np.uint8)) > 0] = colour
         img[g.trail[sl]] = TRAIL
         img = img[::-1]                                   # row 0 of the grid is the lowest y
         s = SIZE / max(img.shape[:2])
@@ -68,6 +78,10 @@ class MapView:
         if path is not None:
             pts = np.array([px(x, y) for x, y in path], np.int32)
             cv2.polylines(img, [pts], False, PATH, 2, cv2.LINE_AA)
+        for bx, by in candidates or ():
+            cv2.circle(img, px(bx, by), max(int(0.1 / g.res * s), 3), CANDIDATE, 2, cv2.LINE_AA)
+        if target is not None:
+            cv2.drawMarker(img, px(float(target[0]), float(target[1])), TARGET, cv2.MARKER_TILTED_CROSS, 18, 3)
         for col, v in (pillars or {}).items():
             c = px(v[1], v[2])
             cv2.circle(img, c, max(int(0.1 / g.res * s), 3), PILLAR.get(col, (0, 0, 0)), -1, cv2.LINE_AA)
@@ -80,26 +94,31 @@ class MapView:
             pad = np.full((img.shape[0], SIZE - img.shape[1], 3), UNKNOWN, np.uint8)
             img = np.hstack([img, pad])
         # header and legend
-        bar = np.full((52, img.shape[1], 3), 255, np.uint8)
+        bar = np.full((74, img.shape[1], 3), 255, np.uint8)
         cv2.putText(bar, f"t = {t:6.2f} s   goal: {goal or 'done'}   grid {g.res * 100:.0f} cm",
                     (8, 18), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
-        xk = 8
-        for name, colour in (("unknown", UNKNOWN), ("lidar wall", (0, 0, 0)), ("camera obstacle", CAM_WALL),
-                             ("green", GREEN), ("too close", INFLATED), ("trail", TRAIL), ("path", PATH)):
-            cv2.rectangle(bar, (xk, 30), (xk + 12, 42), colour, -1)
-            cv2.rectangle(bar, (xk, 30), (xk + 12, 42), (0, 0, 0), 1)
-            cv2.putText(bar, name, (xk + 16, 41), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
-            xk += 22 + int(cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0][0])
+        rows_ = ((("unknown", UNKNOWN), ("lidar wall", (0, 0, 0)), ("camera obstacle", CAM_WALL),
+                  ("green", GREEN), ("too close", INFLATED), ("trail", TRAIL), ("path", PATH)),
+                 (("frontier", FRONTIER), ("candidate viewpoint", VIEWPOINT), ("pillar candidate", CANDIDATE),
+                  ("exploration target", TARGET)))
+        for yk, row in zip((30, 52), rows_):
+            xk = 8
+            for name, colour in row:
+                cv2.rectangle(bar, (xk, yk), (xk + 12, yk + 12), colour, -1)
+                cv2.rectangle(bar, (xk, yk), (xk + 12, yk + 12), (0, 0, 0), 1)
+                cv2.putText(bar, name, (xk + 16, yk + 11), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1, cv2.LINE_AA)
+                xk += 22 + int(cv2.getTextSize(name, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)[0][0])
         return np.vstack([bar, img])
 
-    def update(self, t, pose, path=None, pillars=None, goal=None, blocked=None):
+    def update(self, t, pose, **layers):
         if self.cv2 is None or t < self.next_t:
             return
         self.next_t = t + self.P["map_view_period"]
-        self.cv2.imshow(self.title, self.image(t, pose, path, pillars, goal, blocked))
+        self.cv2.imshow(self.title, self.image(t, pose, **layers))
         self.cv2.waitKey(1)                               # lets the window redraw
 
 
 # Reference: the code in this file was generated with Claude (Anthropic LLM, Claude Code), Oct 2026,
-# prompt: "visualize the occupancy grid when the controller runs". OpenCV drawing functions:
-# OpenCV documentation (cv2.imshow, cv2.polylines, cv2.circle, cv2.putText).
+# prompts: "visualize the occupancy grid when the controller runs" and "show the frontiers too".
+# OpenCV drawing functions: OpenCV documentation (cv2.imshow, cv2.polylines, cv2.circle,
+# cv2.drawMarker, cv2.putText, cv2.dilate).
