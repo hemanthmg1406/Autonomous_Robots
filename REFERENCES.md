@@ -1,7 +1,8 @@
 # References
 
 ## Authorship of the code
-The code text in `navigator/*.py` was generated with Claude (Anthropic LLM, claude.ai, Oct 2026), in an
+The code text in `navigator/*.py` was generated with Claude (Anthropic LLM, claude.ai, Oct 2026; `map_view.py`
+with Claude Code, Oct 2026), in an
 iterative session in which the group set the task, tested the robot in Webots, analysed failures
 and decided on changes. Each file says this in its last lines. As far as we know, no code was copied
 from GitHub, Stack Overflow or other websites.
@@ -28,6 +29,7 @@ All sources were published before 2025.
 | `planner.py` `frontier_mask`, `navigator.py` `_explore` | Frontier-based exploration: drive to the border between known free and unknown space | B. Yamauchi, "A frontier-based approach for autonomous exploration", Proc. IEEE CIRA 1997 |
 | `control.py` `Follower.command` | Pure pursuit path tracking (curvature 2·sin(α)/L to a look-ahead point) | R. C. Coulter, "Implementation of the Pure Pursuit Path Tracking Algorithm", Tech. Rep. CMU-RI-TR-92-01, Carnegie Mellon University, 1992 |
 | `control.py` `wheel_speeds` | Differential-drive inverse kinematics (v, ω → left/right wheel speed) | Siegwart, Nourbakhsh, Scaramuzza 2011, ch. 3 |
+| `map_view.py` `MapView` | Display of the occupancy grid as probabilities p = 1/(1+e^-l) from the log-odds, and of the exploration frontier; drawing with OpenCV | Thrun, Burgard, Fox, *Probabilistic Robotics*, 2005, ch. 9 (log-odds to probability); Yamauchi 1997 (frontiers, see above); OpenCV documentation for `cv2.imshow`, `cv2.polylines`, `cv2.circle`, `cv2.putText` |
 | all files | Webots controller API (Robot, Lidar, Camera, RangeFinder, InertialUnit, PositionSensor, DistanceSensor, Motor) | Cyberbotics, *Webots Reference Manual*, R2025a; O. Michel, "Webots: Professional Mobile Robot Simulation", Int. J. Advanced Robotic Systems 1(1), 2004 |
 
 ## Libraries
