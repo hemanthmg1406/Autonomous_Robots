@@ -14,10 +14,12 @@ Autonomous robots/
     localize.py              scan matching against the map (bilinear distance field, coarse-to-fine search)
     planner.py               cost map + minimum-cost path (scikit-image MCP)
     control.py               pure-pursuit path follower, speed limits
+    map_view.py              live map window (occupancy grid, path, pillars) while the controller runs
   Mazes/MazeN/controllers/navigator/navigator.py   launcher: checks the Python, then starts ../../../../navigator
   tools/run_webots.sh        starts Webots R2025a (macOS 27 fix + project Python)
   tools/run_maze1..5.command double-click starters for Maze 1 to 5 (record console output)
   REFERENCES.md              published methods behind each part of the code
+  docs/HOW_IT_WORKS.md       study guide: how every part works, with exercises
 ```
 
 ## Setup (macOS, once)
@@ -42,6 +44,11 @@ error happens, the wheels are stopped.
 `navigator/logs/launcher.log` records which Python started the controller. If that Python lacks the
 packages, the launcher restarts itself with `~/.venvs/webots` automatically.
 Press ▶. The console prints when each pillar is located and reached, and at the end a `RESULT` block with the times start -> blue pillar, blue -> yellow pillar and total (simulation time). All details are written to the log file.
+
+While the controller runs, a window "Occupancy grid - MazeN" shows the map as the robot builds it (lidar
+walls, camera obstacles, green floor, the no-go zone around obstacles, the planned path and the pillars;
+legend in `docs/HOW_IT_WORKS.md`, section 12). It is display only and does not change the robot's behaviour.
+To hide it, start with `NAV_SHOW_MAP=0 ./run_webots.sh ...` or set `"show_map": false` in a parameter file.
 
 To save map snapshots every 3 s (for debugging), start with:
 `NAV_DEBUG=/tmp/navdbg ./run_webots.sh ../Mazes/Maze1/worlds/Maze1.wbt`. Create the folder first.

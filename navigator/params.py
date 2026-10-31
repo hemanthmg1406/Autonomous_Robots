@@ -31,6 +31,8 @@ DEFAULT = {
     "band_hi": 0.21,            #    above the lidar plane, below the top of the camera housing
     "band_max": 3.0,            # m, rays are followed this far
     # --- map --------------------------------------------------------------------
+    "show_map": True,           # live map window while the controller runs (map_view.py; NAV_SHOW_MAP=0 hides it)
+    "map_view_period": 0.25,    # s of simulation time between map window updates
     "res": 0.02,                # m per grid cell
     "size": 16.0,               # m, square map centred on the start position
     "map_max_turn_rate": 1.0,   # rad/s, lidar walls are only mapped while turning slower than this
