@@ -22,6 +22,7 @@ from planner import Planner
 from control import Follower, wheel_speeds, wrap
 from localize import ScanMatcher, SlipCheck
 from lidar_deskew import LidarDeskew
+from map_view import MapView
 
 robot = Robot()
 DT_MS = int(robot.getBasicTimeStep())
@@ -472,6 +473,9 @@ def versions():
 
 log(f"[nav] world {WORLD}, parameters: {P['_param_file']}")
 log(f"[nav] {versions()}")
+view = MapView(grid, P, f"Occupancy grid - {WORLD}")
+if view.error:
+    log(f"[nav] map window not available ({view.error}), running without it")
 log(f"[nav] timestep {DT_MS} ms, lidar {lidar.getHorizontalResolution()} beams {lidar.getFrequency()} Hz, "
     f"camera {cam.getWidth()}x{cam.getHeight()}, depth {depth.getWidth()}x{depth.getHeight()}")
 mode = "start"
@@ -918,6 +922,14 @@ while robot.step(DT_MS) != -1:
         continue
     try:
         step_once()
+        goal_ = goals[gi] if gi < len(goals) else None
+        exploring = goal_ is not None and goal_ not in pillars
+        view.update(t, pose, path=follow.path, pillars=pillars, goal=goal_,
+                    blocked=getattr(planner, "blocked", None),
+                    frontier=planner.frontier_cells if exploring else None,
+                    viewpoints=planner.viewpoint_cells if exploring else None,
+                    target=grid.xy(*explore_target) if exploring and explore_target is not None else None,
+                    candidates=[(bx, by) for bx, by, _, _ in blob_cands] if exploring else None)
         if t >= next_status:
             next_status += 1.0
             log(status_line(), echo=False)

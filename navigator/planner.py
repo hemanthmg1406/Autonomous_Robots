@@ -11,6 +11,8 @@ class Planner:
         self.blob_targets = None     # bool mask of viewpoints for pillar candidates (set by the navigator)
         self.last_tier = None
         self.heading = None          # robot heading [rad], set by the navigator before exploring
+        self.frontier_cells = None   # frontier cells of the last exploration plan (map window only)
+        self.viewpoint_cells = None  # pillar-candidate viewpoints of the last exploration plan
 
     def build(self, clear_disc=None, inflate=None, confident=False):
         """cost map; with an inflation below the normal one, the cells that are only free thanks
@@ -95,6 +97,9 @@ class Planner:
             self.last_tier = None
             tiers = self.frontier_mask()
             has_blob = self.blob_targets is not None and self.blob_targets.any()
+            # kept for the map window only
+            self.frontier_cells = np.logical_or.reduce(tiers[1:] if has_blob else tiers)
+            self.viewpoint_cells = tiers[0] if has_blob else None
             blob = tiers[0] if has_blob else np.zeros_like(tiers[0])
             if has_blob:
                 tiers = tiers[1:]
